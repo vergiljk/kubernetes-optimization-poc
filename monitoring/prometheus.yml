@@ -97,9 +97,8 @@ scrape_configs:
       - targets:
           - 'host.docker.internal:30080'  # service-a via NodePort
           - 'host.docker.internal:30081'  # service-b via NodePort
-          # Note: service-c, service-d, service-e are pending due to resource constraints
-          # - 'host.docker.internal:30082'  # service-c (pending)
-          # - 'host.docker.internal:30083'  # service-d (pending)
-          # - 'host.docker.internal:30084'  # service-e (pending)
+          - 'host.docker.internal:30082'  # service-c via NodePort
+          - 'host.docker.internal:30083'  # service-d via NodePort
+          - 'host.docker.internal:30084'  # service-e via NodePort
     metrics_path: '/actuator/prometheus'
     scrape_interval: 15s

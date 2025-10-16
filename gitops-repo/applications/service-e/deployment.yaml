@@ -29,11 +29,11 @@ spec:
           name: http
         resources:
           requests:
-            memory: "4Gi"    # Over-provisioned for very light load
-            cpu: "2000m"     # 2 CPU cores - over-provisioned
+            memory: "512Mi"    # Reduced for local POC
+            cpu: "200m"        # Reduced for local POC
           limits:
-            memory: "5Gi"
-            cpu: "2500m"
+            memory: "1Gi"
+            cpu: "500m"
         readinessProbe:
           httpGet:
             path: /health

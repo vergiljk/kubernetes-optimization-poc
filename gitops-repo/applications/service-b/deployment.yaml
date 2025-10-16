@@ -29,11 +29,11 @@ spec:
           name: http
         resources:
           requests:
-            memory: "2Gi"    # Well-sized for heavy load
-            cpu: "1000m"     # 1 CPU core - appropriate for heavy load
+            memory: "256Mi"    # Well-sized for heavy load (500 req/s)
+            cpu: "100m"        # Well-sized baseline
           limits:
-            memory: "3Gi"
-            cpu: "1500m"
+            memory: "512Mi"
+            cpu: "200m"
         readinessProbe:
           httpGet:
             path: /health

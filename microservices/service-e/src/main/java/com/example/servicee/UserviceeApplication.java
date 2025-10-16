@@ -29,19 +29,30 @@ public class UserviceeApplication {
 
     @GetMapping("/api/process/{id}")
     public Map<String, Object> process(@PathVariable String id) {
-        // Simulate very-light-load processing work
-        try {
-            Thread.sleep(5); // 5ms processing time
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        // Simulate very-light-load processing work with CPU calculation
+        long fibResult = 0;
+        for (int i = 0; i < 50; i++) {
+            fibResult += fibonacci(24); // Very light CPU load
         }
 
         Map<String, Object> response = new HashMap<>();
         response.put("id", id);
         response.put("service", "service-e");
         response.put("result", "processed-very-light-load-" + id);
+        response.put("computation", fibResult);
         response.put("timestamp", LocalDateTime.now());
         return response;
+    }
+
+    private long fibonacci(int n) {
+        if (n <= 1) return n;
+        long a = 0, b = 1;
+        for (int i = 2; i <= n; i++) {
+            long temp = a + b;
+            a = b;
+            b = temp;
+        }
+        return b;
     }
 
     @GetMapping("/api/data")

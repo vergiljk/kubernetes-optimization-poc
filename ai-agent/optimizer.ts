@@ -146,7 +146,7 @@ Tasks (use these exact MCP tool names):
 4. If possible, use mcp__grafana__query_prometheus to query specific metrics like:
    - CPU usage metrics (system_cpu_usage, container_cpu_usage)
    - Memory usage metrics (jvm_memory_used_bytes, container_memory_usage)
-   - Service-specific metrics on ports 30080-30081
+   - Service-specific metrics on ports 30080-30084
 
 Analysis Rules:
 - CPU: Recommend if current > 150% of peak usage, round UP to nearest 100m, min 100m buffer

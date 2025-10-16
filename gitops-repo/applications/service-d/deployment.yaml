@@ -29,11 +29,11 @@ spec:
           name: http
         resources:
           requests:
-            memory: "3Gi"    # Over-provisioned for light-medium load
-            cpu: "1500m"     # 1.5 CPU cores - over-provisioned
+            memory: "384Mi"    # Moderately over-provisioned for light-medium load (50 req/s)
+            cpu: "120m"        # Moderately over-provisioned - actual usage ~30-40m
           limits:
-            memory: "4Gi"
-            cpu: "2000m"
+            memory: "768Mi"
+            cpu: "250m"
         readinessProbe:
           httpGet:
             path: /health
