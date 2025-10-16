@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-e
+  namespace: default
+  labels:
+    app: service-e
+    component: microservice
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: service-e
+  template:
+    metadata:
+      labels:
+        app: service-e
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: service-e
+        image: k8s-poc/service-e:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8084
+          name: http
+        resources:
+          requests:
+            memory: "4Gi"    # Over-provisioned for very light load
+            cpu: "2000m"     # 2 CPU cores - over-provisioned
+          limits:
+            memory: "5Gi"
+            cpu: "2500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8084
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8084
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms1g -Xmx3g"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-e
+  labels:
+    app: service-e
+spec:
+  selector:
+    app: service-e
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8084
+    nodePort: 30084  # Expose on node port 30084
+  type: NodePort

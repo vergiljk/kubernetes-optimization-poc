@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-b
+  namespace: default
+  labels:
+    app: service-b
+    component: microservice
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: service-b
+  template:
+    metadata:
+      labels:
+        app: service-b
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: service-b
+        image: k8s-poc/service-b:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+          name: http
+        resources:
+          requests:
+            memory: "2Gi"    # Well-sized for heavy load
+            cpu: "1000m"     # 1 CPU core - appropriate for heavy load
+          limits:
+            memory: "3Gi"
+            cpu: "1500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms1g -Xmx2g"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-b
+  labels:
+    app: service-b
+spec:
+  selector:
+    app: service-b
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8081
+    nodePort: 30081  # Expose on node port 30081
+  type: NodePort

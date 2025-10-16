@@ -1,0 +1,56 @@
+package com.example.servicee;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import java.util.Map;
+import java.util.HashMap;
+import java.time.LocalDateTime;
+
+@SpringBootApplication
+@RestController
+public class UserviceeApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(UserviceeApplication.class, args);
+    }
+
+    @GetMapping("/health")
+    public Map<String, Object> health() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("status", "UP");
+        status.put("service", "service-e");
+        status.put("timestamp", LocalDateTime.now());
+        return status;
+    }
+
+    @GetMapping("/api/process/{id}")
+    public Map<String, Object> process(@PathVariable String id) {
+        // Simulate very-light-load processing work
+        try {
+            Thread.sleep(5); // 5ms processing time
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", id);
+        response.put("service", "service-e");
+        response.put("result", "processed-very-light-load-" + id);
+        response.put("timestamp", LocalDateTime.now());
+        return response;
+    }
+
+    @GetMapping("/api/data")
+    public Map<String, Object> getData() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("service", "service-e");
+        data.put("type", "very-light-load");
+        data.put("data", "Sample data from service-e");
+        data.put("timestamp", LocalDateTime.now());
+        return data;
+    }
+}

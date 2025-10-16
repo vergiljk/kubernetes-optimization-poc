@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-c
+  namespace: default
+  labels:
+    app: service-c
+    component: microservice
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: service-c
+  template:
+    metadata:
+      labels:
+        app: service-c
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: service-c
+        image: k8s-poc/service-c:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8082
+          name: http
+        resources:
+          requests:
+            memory: "6Gi"    # Over-provisioned for medium load
+            cpu: "3000m"     # 3 CPU cores - over-provisioned
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms2g -Xmx5g"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-c
+  labels:
+    app: service-c
+spec:
+  selector:
+    app: service-c
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8082
+    nodePort: 30082  # Expose on node port 30082
+  type: NodePort

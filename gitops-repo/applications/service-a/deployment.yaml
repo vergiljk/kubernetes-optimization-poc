@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-a
+  namespace: default
+  labels:
+    app: service-a
+    component: microservice
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: service-a
+  template:
+    metadata:
+      labels:
+        app: service-a
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: service-a
+        image: k8s-poc/service-a:latest
+        imagePullPolicy: Never  # For local images
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            memory: "4Gi"    # Intentionally over-provisioned for testing
+            cpu: "2000m"     # 2 CPU cores
+          limits:
+            memory: "6Gi"
+            cpu: "3000m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms1g -Xmx3g"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-a
+  labels:
+    app: service-a
+spec:
+  selector:
+    app: service-a
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    nodePort: 30080  # Expose on node port 30080
+  type: NodePort
