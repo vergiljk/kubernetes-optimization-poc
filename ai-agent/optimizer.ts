@@ -132,29 +132,44 @@ class K8sOptimizerSDK {
 
     // Analysis prompt that uses MCP tools
     const analysisPrompt = `
-You are an expert Kubernetes resource optimization analyst with access to Grafana via MCP tools.
+You are an expert Kubernetes resource optimization analyst with access to Grafana/Prometheus via MCP tools.
 
 Analyze service: ${serviceName}
 
 Current Kubernetes Configuration:
 ${JSON.stringify(k8sConfig, null, 2)}
 
-Tasks (use these exact MCP tool names):
-1. Use mcp__grafana__list_datasources to find available Grafana datasources
-2. Look for Prometheus datasource and note its UID
-3. Use mcp__grafana__list_prometheus_metric_names to see available metrics
-4. If possible, use mcp__grafana__query_prometheus to query specific metrics like:
-   - CPU usage metrics (system_cpu_usage, container_cpu_usage)
-   - Memory usage metrics (jvm_memory_used_bytes, container_memory_usage)
-   - Service-specific metrics on ports 30080-30084
+Service Port Mapping (for querying metrics):
+- service-a: port 30080 (8080 internal)
+- service-b: port 30081 (8081 internal)
+- service-c: port 30082 (8082 internal)
+- service-d: port 30083 (8083 internal)
+- service-e: port 30084 (8084 internal)
 
-Analysis Rules:
-- CPU: Recommend if current > 150% of peak usage, round UP to nearest 100m, min 100m buffer
-- Memory: Recommend if current > 150% of peak usage, round UP to nearest 0.5Gi, min 0.5Gi buffer
-- Only recommend changes if current allocation is >50% over peak usage
-- Never recommend less than 100m CPU or 0.5Gi memory
+Analysis Steps:
+1. Use mcp__grafana__list_datasources to find the Prometheus datasource
+2. Use mcp__grafana__query_prometheus to query actual CPU and memory usage over the last 1 hour
+3. Query these metrics (replace <port> with the service's port):
+   - CPU: process_cpu_usage OR system_cpu_usage (filter by instance="host.docker.internal:<port>")
+   - Memory: jvm_memory_used_bytes{area="heap"} (filter by instance)
+   - HTTP requests: http_server_requests_seconds_count (to understand load patterns)
 
-Return JSON only:
+4. Calculate peak usage from the metrics
+5. Compare peak usage to current Kubernetes resource requests
+6. Determine if service is over-provisioned (current > 200% of peak usage)
+
+Optimization Guidelines:
+- Consider a service OPTIMIZABLE if current resources are >200% of peak usage
+- Consider a service WELL-SIZED if current resources are 120-200% of peak usage
+- Recommended resources should be: peak_usage * 1.5 (50% safety buffer)
+- Round CPU to nearest 10m (e.g., 45m → 50m, 120m → 120m)
+- Round memory to nearest 128Mi (e.g., 150Mi → 256Mi, 350Mi → 384Mi)
+- Minimum recommendations: 50m CPU, 128Mi memory
+- Never recommend less than current usage
+
+CRITICAL: Return ONLY valid JSON with no additional text, markdown, or code blocks.
+Do not wrap the JSON in backticks or code fences.
+Return the raw JSON object directly:
 {
     "service_name": "${serviceName}",
     "status": "optimizable" | "well-sized" | "insufficient_data",
@@ -255,17 +270,37 @@ Return JSON only:
         };
       }
 
-      // Extract JSON from response
-      const jsonStart = finalResponse.indexOf('{');
-      const jsonEnd = finalResponse.lastIndexOf('}') + 1;
+      // Clean up response - remove markdown code fences if present
+      let cleanedResponse = finalResponse.trim();
+
+      // Look for JSON code fence patterns
+      const jsonFenceMatch = cleanedResponse.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonFenceMatch) {
+        cleanedResponse = jsonFenceMatch[1];
+      } else {
+        // Try regular code fence
+        const regularFenceMatch = cleanedResponse.match(/```\s*(\{[\s\S]*?\})\s*```/);
+        if (regularFenceMatch) {
+          cleanedResponse = regularFenceMatch[1];
+        }
+      }
+
+      // Extract JSON from response (find the outermost { } pair)
+      const jsonStart = cleanedResponse.indexOf('{');
+      const jsonEnd = cleanedResponse.lastIndexOf('}') + 1;
 
       if (jsonStart >= 0 && jsonEnd > jsonStart) {
+        const jsonString = cleanedResponse.substring(jsonStart, jsonEnd);
+        console.log(`📋 Extracted JSON (first 200 chars): ${jsonString.substring(0, 200)}...`);
+
         try {
-          const result: AnalysisResult = JSON.parse(finalResponse.substring(jsonStart, jsonEnd));
+          const result: AnalysisResult = JSON.parse(jsonString);
           console.log(`✅ Analysis complete for ${serviceName}: ${result.status}`);
           return result;
         } catch (jsonError) {
           console.error(`❌ JSON decode error:`, jsonError);
+          console.error(`📄 Full response:\n${finalResponse}`);
+          console.error(`📄 Attempted to parse:\n${jsonString.substring(0, 1000)}`);
           return {
             service_name: serviceName,
             status: 'error',
@@ -274,6 +309,7 @@ Return JSON only:
           };
         }
       } else {
+        console.error(`📄 Full response (no JSON found):\n${finalResponse}`);
         return {
           service_name: serviceName,
           status: 'error',
@@ -544,7 +580,7 @@ async function main(): Promise<number> {
   const config: OptimizerConfig = {
     grafana_url: process.env.GRAFANA_URL || 'http://localhost:3000',
     grafana_token: process.env.GRAFANA_TOKEN || '',
-    services: ['service-a', 'service-b']  // Focus on running services
+    services: ['service-a', 'service-b', 'service-c', 'service-d', 'service-e']  // All services
   };
 
   // Validate Grafana token
@@ -579,10 +615,15 @@ console.log('🔍 Checking if this is the main module...');
 console.log('import.meta.url:', import.meta.url);
 console.log('process.argv[1]:', process.argv[1]);
 
-// More robust main module detection for ts-node
-const isMainModule = import.meta.url === `file://${process.argv[1]}` ||
-                    import.meta.url.endsWith('optimizer.ts') ||
-                    process.argv[1].endsWith('optimizer.ts');
+// More robust main module detection - handle URL encoding and different paths
+const normalizedMetaUrl = decodeURIComponent(import.meta.url);
+const normalizedArgv = process.argv[1];
+
+const isMainModule = normalizedMetaUrl === `file://${normalizedArgv}` ||
+                    normalizedMetaUrl.endsWith('optimizer.ts') ||
+                    normalizedMetaUrl.endsWith('optimizer.js') ||
+                    normalizedArgv.endsWith('optimizer.ts') ||
+                    normalizedArgv.endsWith('optimizer.js');
 
 if (isMainModule) {
   console.log('🎯 Executing main function...');

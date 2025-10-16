@@ -63,6 +63,8 @@ services:
       - "8001:8000"  # SSE transport port
     environment:
       - MCP_TRANSPORT=sse
+      - GRAFANA_URL=${GRAFANA_URL}
+      - GRAFANA_API_KEY=${GRAFANA_SERVICE_ACCOUNT_TOKEN}
     networks:
       - monitoring
     depends_on:
